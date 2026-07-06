@@ -1,0 +1,73 @@
+
+# ***
+
+# ### 2. .gitignore
+
+# Create a file named `.gitignore` in the root of your repository and paste this inside. This ensures you don't accidentally push your heavy dataset images or Python cache files to GitHub.
+
+# ```gitignore
+# # ==========================================
+# # Dataset and Captures (CRITICAL)
+# # ==========================================
+# # Do not push the collected images to GitHub
+# candling_dataset/
+# captures/
+# *.jpg
+# *.jpeg
+# *.png
+
+# # ==========================================
+# # Python
+# # ==========================================
+# __pycache__/
+# *.py[cod]
+# *$py.class
+# *.so
+# .Python
+# build/
+# develop-eggs/
+# dist/
+# downloads/
+# eggs/
+# .eggs/
+# lib/
+# lib64/
+# parts/
+# sdist/
+# var/
+# wheels/
+# *.egg-info/
+# .installed.cfg
+# *.egg
+
+# # ==========================================
+# # Virtual Environments
+# # ==========================================
+# venv/
+# ENV/
+# env/
+# .venv
+
+# # ==========================================
+# # IDE and OS files
+# # ==========================================
+# .vscode/
+# .idea/
+# *.swp
+# *.swo
+# *~
+# .DS_Store
+# Thumbs.db
+
+# # ==========================================
+# # Jupyter Notebook
+# # ==========================================
+# .ipynb_checkpoints/
+
+# # ==========================================
+# # Machine Learning / YOLO
+# # ==========================================
+# runs/
+# weights/
+*.pt
+# *.onnx
