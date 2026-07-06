@@ -85,7 +85,6 @@ class CandlingDataCollector:
                 self.queue_property(prop_id, var_obj.get())
 
     def setup_ui(self):
-        # Configure deep layout responsive weights
         self.root.grid_columnconfigure(0, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
 
@@ -114,23 +113,17 @@ class CandlingDataCollector:
         canvas = tk.Canvas(sidebar_outer, bg="#f5f6fa", highlightthickness=0)
         scrollbar = ttk.Scrollbar(sidebar_outer, orient="vertical", command=canvas.yview)
         
-        # Real-time fluid scroll window matching
         self.sidebar = tk.Frame(canvas, bg="#f5f6fa", padx=15, pady=15)
-        self.sidebar.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        self.sidebar.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         
         canvas_window = canvas.create_window((0, 0), window=self.sidebar, anchor="nw")
         
-        # Handle canvas expanding width properly
         def _on_canvas_configure(event):
             canvas.itemconfig(canvas_window, width=event.width)
             
         canvas.bind('<Configure>', _on_canvas_configure)
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # Bind Mousewheel scanning across the control panel area globally
         def _on_mousewheel(event):
             canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         sidebar_outer.bind_all("<MouseWheel>", _on_mousewheel)
@@ -196,7 +189,7 @@ class CandlingDataCollector:
         self.create_hardware_slider(sliders_parent, "Sensor Gain Boost", cv2.CAP_PROP_GAIN, 0, 255, 0)
         self.create_hardware_slider(sliders_parent, "Edge Sharpness Filter", cv2.CAP_PROP_SHARPNESS, 0, 255, 128)
 
-        # --- MODULE 4: METADATA & DATASETS (Guaranteed Visible Now) ---
+        # --- MODULE 4: METADATA & DATASETS ---
         meta_frame = tk.LabelFrame(self.sidebar, text=" 4. Annotation & Metadata ", font=("Arial", 10, "bold"), bg="#f5f6fa", fg="#2f3640", padx=10, pady=10)
         meta_frame.pack(fill=tk.X, pady=(0, 10))
         
@@ -262,25 +255,32 @@ class CandlingDataCollector:
             self.cap.set(cv2.CAP_PROP_SHARPNESS, 128)
 
     def on_focus_slider(self, val):
-        self.break_auto_loops()
+        self.break_focus_loop()
         self.queue_property(cv2.CAP_PROP_FOCUS, int(float(val)))
 
     def on_exp_slider(self, val):
-        self.break_auto_loops()
+        self.break_general_loops(break_exp=True)
         self.queue_property(cv2.CAP_PROP_EXPOSURE, int(float(val)))
 
     def on_wb_slider(self, val):
-        self.break_auto_loops()
+        self.break_general_loops(break_wb=True)
         self.queue_property(cv2.CAP_PROP_WB_TEMPERATURE, int(float(val)))
 
-    def break_auto_loops(self):
-        if self.all_auto_var.get() or self.auto_focus_var.get() or self.auto_exp_var.get() or self.auto_wb_var.get():
-            self.all_auto_var.set(False)
+    def break_focus_loop(self):
+        """Only shuts down auto-focus loops; preserves active auto exposure & auto white balance."""
+        if self.auto_focus_var.get():
             self.auto_focus_var.set(False)
-            self.auto_exp_var.set(False)
-            self.auto_wb_var.set(False)
+            self.all_auto_var.set(False)
             self.queue_property(cv2.CAP_PROP_AUTOFOCUS, 0)
+
+    def break_general_loops(self, break_exp=False, break_wb=False):
+        """Standard slider interaction safety drops for Exposure/WB loops."""
+        self.all_auto_var.set(False)
+        if break_exp and self.auto_exp_var.get():
+            self.auto_exp_var.set(False)
             self.queue_property(cv2.CAP_PROP_AUTO_EXPOSURE, 0)
+        if break_wb and self.auto_wb_var.get():
+            self.auto_wb_var.set(False)
             self.queue_property(cv2.CAP_PROP_AUTO_WB, 0)
 
     def create_hardware_slider(self, parent, label_text, prop_id, from_val, to_val, default_val, is_exp=False, is_wb=False):
@@ -293,13 +293,22 @@ class CandlingDataCollector:
         elif is_wb:
             cmd = lambda v: self.on_wb_slider(v)
         else:
-            cmd = lambda v, p=prop_id: [self.break_auto_loops(), self.queue_property(p, int(float(v)))]
+            # Brightness, Contrast, Gain, and Sharpness fall under basic image registers
+            cmd = lambda v, p=prop_id: [self.break_general_loops(break_exp=True, break_wb=True), self.queue_property(p, int(float(v)))]
             
         scale = ttk.Scale(parent, from_=from_val, to=to_val, variable=var, orient=tk.HORIZONTAL, command=cmd)
         scale.pack(fill=tk.X, pady=(0, 2))
 
     def step_value(self, var_obj, amount, prop_id):
-        self.break_auto_loops()
+        if prop_id == cv2.CAP_PROP_FOCUS:
+            self.break_focus_loop()
+        elif prop_id == cv2.CAP_PROP_EXPOSURE:
+            self.break_general_loops(break_exp=True)
+        elif prop_id == cv2.CAP_PROP_WB_TEMPERATURE:
+            self.break_general_loops(break_wb=True)
+        else:
+            self.break_general_loops(break_exp=True, break_wb=True)
+
         new_val = max(0, min(1023, var_obj.get() + amount))
         var_obj.set(new_val)
         self.queue_property(prop_id, new_val)
